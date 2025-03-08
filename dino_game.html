@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crab Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: url('backgrounGAME.png') no-repeat center center fixed;
+            background-size: cover; /* Фон на весь екран */
+        }
+        canvas {
+            display: block;
+            margin: 0 auto; /* Прибрано border */
+        }
+        #menu, #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-family: 'CrabFont', sans-serif;
+            color: #fff;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 1s ease-in-out;
+            display: none;
+            width: 1550px; /* 1632 * 0.95 */
+            height: 872px; /* 918 * 0.95 */
+            background: url('backgrounMENU.png') no-repeat center center;
+            background-size: cover;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        #menu h1, #gameOver h1 {
+            font-size: 64px;
+            color: #ff0099; /* Темніший рожевий */
+            margin-bottom: 20px;
+            text-shadow: 0 0 5px #ff0099, 0 0 10px #ff1493; /* Зменшено ефект тіні */
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        #menu p, #gameOver p {
+            font-size: 20px;
+            color: #00b7eb;
+            margin-bottom: 30px;
+        }
+        button {
+            font-family: 'CrabFont', sans-serif;
+            font-size: 24px;
+            padding: 15px 30px;
+            margin: 10px;
+            cursor: pointer;
+            background: linear-gradient(90deg, #ff00ff, #ff1493);
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            box-shadow: 0 5px 15px rgba(255, 0, 255, 0.5);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px rgba(255, 0, 255, 0.7);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        @font-face {
+            font-family: 'CrabFont';
+            src: url('Fonts/Fonts.ttf') format('truetype');
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="1600" height="900"></canvas>
+    <div id="menu">
+        <h1>Crab Game</h1>
+        <p>Welcome to the Ultimate Crab Adventure!</p>
+        <button onclick="startGame()">🎮 Play</button>
+        <button onclick="showSettings()">⚙️ Settings</button>
+        <button onclick="exitGame()">🚪 Exit</button>
+    </div>
+    <div id="gameOver">
+        <h1>Game Over</h1>
+        <p>Your Score: <span id="finalScore">0</span></p>
+        <button onclick="restartGame()">🔄 Restart</button>
+        <button onclick="returnToMenu()">🏠 Main Menu</button>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameRunning = false;
+
+        // Завантаження зображень
+        const backgroundImg = new Image();
+        backgroundImg.src = 'Background.png'; // Передній фон гри
+
+        const backBackgroundImg = new Image(); // Задній фон гри (паралакс)
+        backBackgroundImg.src = 'backgrounGAME.png';
+
+        const floorImg = new Image();
+        floorImg.src = 'down.png'; // Платформа
+
+        const playerImg = new Image();
+        playerImg.src = 'player.png'; // 158x119 (краб)
+
+        const pereshkodaImg = new Image();
+        pereshkodaImg.src = 'pereshkoda.png'; // 128x128
+
+        const tokenImg = new Image();
+        tokenImg.src = 'token.png'; // 60x60
+
+        // Параметри гри
+        const floorHeight = 40;
+        const gravity = 0.5;
+        const obstacleSpeed = 5;
+        const backBackgroundSpeed = obstacleSpeed * 0.5; // Повільніший рух другого плану
+
+        // Налаштування для редагування
+        const playerHeightLevel = 660; // Висота бігу героя
+        const obstacleHeightLevel = 670; // Висота перешкод
+        const tokenHeightLevel = 700; // Висота токенів
+        const jumpStrength = -20; // Сила стрибка
+        // Зіткнення для перешкод (на основі "видимої" частини 76x86)
+        const collisionOffset = 26; // Зіткнення з лівого боку (зсунуто на 26 пікселів правіше)
+        const collisionOffsetRight = -52; // Зіткнення з правого боку (зсунуто на 52 пікселі лівіше)
+        const collisionOffsetTop = 21; // Зіткнення зверху (зсунуто на 21 піксель вниз)
+        const collisionOffsetBottom = -42; // Зіткнення знизу (зсунуто на 42 пікселі вгору)
+        // Зіткнення для токенів
+        const tokenCollisionOffset = 0; // Зіткнення з лівого боку (для токенів)
+        const tokenCollisionOffsetRight = 0; // Зіткнення з правого боку (для токенів)
+        const tokenCollisionOffsetTop = 0; // Зіткнення зверху (для токенів)
+        const tokenCollisionOffsetBottom = 0; // Зіткнення знизу (для токенів)
+
+        // Параметри спавну перешкод (редагуй тут)
+        const spawnProbability = 0.01; // Ймовірність спавну (0-1, за замовчуванням 0.01)
+        const doubleSpawnChance = 0.5; // Шанс спавну 2 перешкод впритул (0-1, за замовчуванням 0.5)
+        const minDistance = 400; // Мінімальна відстань між групами перешкод (пікселі, за замовчуванням 400)
+        const tokenSpawnChance = 0.56; // Ймовірність спавну токена (56%)
+
+        // Змінні для спавну
+        let lastObstacleX = -minDistance; // Остання позиція перешкоди
+        let lastObstacleCount = 0; // Кількість перешкод у попередній групі
+        let backgroundX = 0; // Початкова позиція переднього фону
+        let backBackgroundX = 0; // Початкова позиція заднього фону
+
+        // Об'єкт гравця
+        const player = {
+            x: 50,
+            y: playerHeightLevel,
+            width: 158,
+            height: 119,
+            velocityY: 0,
+            jumping: false,
+            startHeight: playerHeightLevel // Зберігаємо початкову висоту
+        };
+
+        // Перешкоди та токени
+        let obstacles = [];
+        let tokens = [];
+        let frameCount = 0;
+        let score = 0;
+
+        // Функції меню
+        function startGame() {
+            gameRunning = true;
+            document.getElementById('menu').style.display = 'none';
+            gameLoop();
+        }
+
+        function showSettings() {
+            alert('Settings feature coming soon!');
+        }
+
+        function exitGame() {
+            if (confirm('Are you sure you want to exit?')) {
+                window.close(); // Закриття вікна (працює лише в деяких браузерах)
+            }
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            obstacles = [];
+            tokens = [];
+            score = 0;
+            frameCount = 0;
+            lastObstacleX = -minDistance;
+            lastObstacleCount = 0;
+            backgroundX = 0;
+            backBackgroundX = 0;
+            gameRunning = true;
+            gameLoop();
+        }
+
+        function returnToMenu() {
+            document.getElementById('gameOver').style.display = 'none';
+            obstacles = [];
+            tokens = [];
+            score = 0;
+            frameCount = 0;
+            lastObstacleX = -minDistance;
+            lastObstacleCount = 0;
+            backgroundX = 0;
+            backBackgroundX = 0;
+            gameRunning = false;
+            document.getElementById('menu').style.display = 'block';
+        }
+
+        // Управління
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !player.jumping && player.y === player.startHeight && gameRunning) {
+                player.velocityY = jumpStrength;
+                player.jumping = true;
+                player.startHeight = player.y;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                player.jumping = false;
+            }
+        });
+
+        // Генерація перешкод із простим алгоритмом
+        function spawnObstacle() {
+            if (Math.random() > spawnProbability) return; // Ймовірність спавну
+
+            // Перевіряємо, чи остання перешкода достатньо далеко
+            let canSpawn = true;
+            if (obstacles.length > 0) {
+                let lastObstacle = obstacles[obstacles.length - 1];
+                if (lastObstacle.x + minDistance > canvas.width) {
+                    canSpawn = false; // Чекаємо, поки остання перешкода відійде
+                }
+            }
+
+            if (!canSpawn) return;
+
+            let numberOfObstacles = Math.random() > doubleSpawnChance ? 1 : 2; // 1 або 2 перешкоди
+
+            // Спавн перешкод
+            for (let i = 0; i < numberOfObstacles; i++) {
+                const obstacle = {
+                    x: canvas.width + (i * 76), // Впритул одна до одної (76 - ширина "видимої" частини)
+                    y: obstacleHeightLevel,
+                    width: 128, // Розмір зображення
+                    height: 128, // Розмір зображення
+                    passed: false
+                };
+                obstacles.push(obstacle);
+            }
+            lastObstacleX = canvas.width + (numberOfObstacles - 1) * 76; // Оновлюємо останню позицію
+            lastObstacleCount = numberOfObstacles; // Зберігаємо кількість перешкод у групі
+
+            // Спавнимо токен із ймовірністю 56%
+            if (Math.random() < tokenSpawnChance) {
+                // Визначаємо позицію токена посередині між групами
+                let lastGroupEndX = lastObstacleX;
+                if (lastObstacleCount === 2) {
+                    lastGroupEndX += 76; // Якщо було 2 перешкоди, додаємо ширину другої
+                }
+
+                let nextGroupStartX = lastGroupEndX + minDistance;
+                let tokenX = lastGroupEndX + (nextGroupStartX - lastGroupEndX) / 2; // Середина між групами
+
+                // Перевіряємо, чи токен не надто близько до перешкоди (мінімум 100 пікселів)
+                let tooClose = false;
+                for (let i = 0; i < obstacles.length; i++) {
+                    let obstacle = obstacles[i];
+                    let distanceToObstacle = Math.abs(tokenX - (obstacle.x + obstacle.width / 2));
+                    if (distanceToObstacle < 100) { // 100 пікселів — мінімальна відстань до перешкоди
+                        tooClose = true;
+                        break;
+                    }
+                }
+
+                if (!tooClose) {
+                    const token = {
+                        x: tokenX,
+                        y: tokenHeightLevel,
+                        width: 60,
+                        height: 60,
+                        collected: false
+                    };
+                    tokens.push(token);
+                }
+            }
+        }
+
+        // Перевірка колізій для перешкод
+        function checkObstacleCollision(player, obstacle) {
+            const adjustedPlayerXLeft = player.x + collisionOffset;
+            const adjustedPlayerXRight = player.x + player.width + collisionOffsetRight;
+            const adjustedPlayerYTop = player.y + collisionOffsetTop;
+            const adjustedPlayerYBottom = player.y + player.height + collisionOffsetBottom;
+
+            const collisionX = adjustedPlayerXLeft < obstacle.x + obstacle.width &&
+                              adjustedPlayerXRight > obstacle.x;
+            const collisionY = adjustedPlayerYTop < obstacle.y + obstacle.height &&
+                              adjustedPlayerYBottom > obstacle.y;
+
+            return collisionX && collisionY;
+        }
+
+        // Перевірка колізій для токенів
+        function checkTokenCollision(player, token) {
+            const adjustedPlayerXLeft = player.x + tokenCollisionOffset;
+            const adjustedPlayerXRight = player.x + player.width + tokenCollisionOffsetRight;
+            const adjustedPlayerYTop = player.y + tokenCollisionOffsetTop;
+            const adjustedPlayerYBottom = player.y + player.height + tokenCollisionOffsetBottom;
+
+            const collisionX = adjustedPlayerXLeft < token.x + token.width &&
+                              adjustedPlayerXRight > token.x;
+            const collisionY = adjustedPlayerYTop < token.y + token.height &&
+                              adjustedPlayerYBottom > token.y;
+
+            return collisionX && collisionY;
+        }
+
+        // Основний ігровий цикл
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            // Малювання заднього фону
+            backBackgroundX -= backBackgroundSpeed;
+            if (backBackgroundX <= -canvas.width) backBackgroundX = 0;
+            ctx.drawImage(backBackgroundImg, backBackgroundX, 0, canvas.width, 900 - floorHeight);
+            ctx.drawImage(backBackgroundImg, backBackgroundX + canvas.width, 0, canvas.width, 900 - floorHeight);
+
+            // Малювання переднього фону
+            backgroundX -= obstacleSpeed;
+            if (backgroundX <= -canvas.width) backgroundX = 0;
+            ctx.drawImage(backgroundImg, backgroundX, 0, canvas.width, 900 - floorHeight);
+            ctx.drawImage(backgroundImg, backgroundX + canvas.width, 0, canvas.width, 900 - floorHeight);
+
+            // Малювання підлоги
+            ctx.drawImage(floorImg, 0, 900 - floorHeight, canvas.width, floorHeight);
+
+            // Оновлення гравця
+            if (player.jumping || player.y < player.startHeight) {
+                player.velocityY += gravity;
+                player.y += player.velocityY;
+            }
+
+            if (player.y >= player.startHeight) {
+                player.y = player.startHeight;
+                player.velocityY = 0;
+                player.jumping = false;
+            }
+
+            // Малювання гравця
+            ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
+
+            // Генерація об'єктів
+            frameCount++;
+            spawnObstacle();
+
+            // Оновлення та малювання перешкод
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].x -= obstacleSpeed;
+                ctx.drawImage(pereshkodaImg, obstacles[i].x, obstacles[i].y, obstacles[i].width, obstacles[i].height);
+
+                if (!obstacles[i].passed && obstacles[i].x + obstacles[i].width < player.x) {
+                    obstacles[i].passed = true;
+                    score++;
+                }
+
+                if (checkObstacleCollision(player, obstacles[i])) {
+                    document.getElementById('finalScore').textContent = score;
+                    document.getElementById('gameOver').style.display = 'block';
+                    gameRunning = false;
+                    return;
+                }
+
+                if (obstacles[i].x + obstacles[i].width < 0) obstacles.splice(i, 1);
+            }
+
+            // Оновлення та малювання токенів
+            for (let i = tokens.length - 1; i >= 0; i--) {
+                tokens[i].x -= obstacleSpeed;
+                if (!tokens[i].collected) {
+                    ctx.drawImage(tokenImg, tokens[i].x, tokens[i].y, tokens[i].width, tokens[i].height);
+                }
+
+                if (!tokens[i].collected && checkTokenCollision(player, tokens[i])) {
+                    tokens[i].collected = true;
+                    score += 5;
+                }
+
+                if (tokens[i].x + tokens[i].width < 0) tokens.splice(i, 1);
+            }
+
+            // Відображення рахунку
+            ctx.fillStyle = 'black';
+            ctx.font = '30px Arial';
+            ctx.fillText(`Score: ${score}`, 10, 40);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Запуск гри після завантаження зображень
+        Promise.all([
+            new Promise(resolve => backgroundImg.onload = resolve),
+            new Promise(resolve => backBackgroundImg.onload = resolve),
+            new Promise(resolve => floorImg.onload = resolve),
+            new Promise(resolve => playerImg.onload = resolve),
+            new Promise(resolve => pereshkodaImg.onload = resolve),
+            new Promise(resolve => tokenImg.onload = resolve)
+        ]).then(() => {
+            document.getElementById('menu').style.display = 'block';
+        });
+    </script>
+</body>
+</html>

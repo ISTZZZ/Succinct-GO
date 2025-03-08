@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crab Game - Menu</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: url('backgrounGAME.png') no-repeat center center fixed;
+            background-size: cover; /* Фон на весь екран */
+        }
+        #menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-family: 'CrabFont', sans-serif;
+            color: #fff;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 1s ease-in-out;
+            display: block; /* Показуємо меню одразу */
+            width: 1550px; /* 1632 * 0.95 */
+            height: 872px; /* 918 * 0.95 */
+            background: url('backgrounMENU.png') no-repeat center center;
+            background-size: cover;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        #menu h1 {
+            font-size: 64px;
+            color: #ff0099; /* Темніший рожевий */
+            margin-bottom: 20px;
+            text-shadow: 0 0 5px #ff0099, 0 0 10px #ff1493; /* Зменшено ефект тіні */
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        #menu p {
+            font-size: 20px;
+            color: #00b7eb;
+            margin-bottom: 30px;
+        }
+        button {
+            font-family: 'CrabFont', sans-serif;
+            font-size: 24px;
+            padding: 15px 30px;
+            margin: 10px;
+            cursor: pointer;
+            background: linear-gradient(90deg, #ff00ff, #ff1493);
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            box-shadow: 0 5px 15px rgba(255, 0, 255, 0.5);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px rgba(255, 0, 255, 0.7);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        @font-face {
+            font-family: 'CrabFont';
+            src: url('Fonts/Fonts.ttf') format('truetype');
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h1>Crab Game</h1>
+        <p>Welcome to the Ultimate Crab Adventure!</p>
+        <button onclick="window.location.href='game.html'">🎮 Play</button>
+        <button onclick="showSettings()">⚙️ Settings</button>
+        <button onclick="exitGame()">🚪 Exit</button>
+    </div>
+    <script>
+        function showSettings() {
+            alert('Settings feature coming soon!');
+        }
+
+        function exitGame() {
+            if (confirm('Are you sure you want to exit?')) {
+                window.close(); // Закриття вікна (працює лише в деяких браузерах)
+            }
+        }
+    </script>
+</body>
+</html>
